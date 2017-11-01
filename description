@@ -1,0 +1,71 @@
+事情是这样子的！
+
+要移植一个新的SPI接口的 IMU ADIS16405 到pixhawk板的apm代码中。
+
+1.代码见ardupilot文件的内容。
+2.主要的是在library 增加新的 IMU的驱动。
+
+程序 调用是这样的，在copter的类中有 ins的成员变量，该变量定义为 AP_InertialSensor ins;  ins在init会调用 detect_backends函数，该该函数调用_add_backend()来检测存在的INS传感器，检测到以后会update传感器数据。
+驱动函数中，会注册一个周期函数来供update函数调用，最终使用spi的驱动来发送指令到传感器，读取数据。
+
+我在读写数据的地方加了printf来打印读取的数据，前一周能够正常打印，第一次上电会进入nsh，再次上电就可以看到循环打印的速度传感器数据的log。
+然后我干了几天别的，再次回来。
+
+每次上电都进入 nsh，感觉程序就没有跑完，也不会跑到ins的传感器检测什么的，也没有log出来。
+
+
+郁闷！
+是不是sd卡有关啊？
+
+启动的log如下：
+
+####### spi4 already initial by other thread.
+############# spi4 init
+GPIOE_MODER:0xa960,register address = 0x40021000
+GPIOE_OTYPER:0x1000,register address = 0x40021004
+GPIOE_OSPEED:0xe820,register address = 0x40021008
+GPIOE_PUPDR:0x4000,register address = 0x4002100c
+GPIOE_IDR:0x95ff,register address = 0x40021010
+GPIOE_ODR:0x1018,register address = 0x40021014
+GPIOE_BSRR:0x0000,register address = 0x40021018
+GPIOE_LCKR:0x0000,register address = 0x4002101c
+GPIOE_AFRL:0x0500,register address = 0x40021020
+GPIOE_AFRH:0x0008,register address = 0x40021024
+[init] looking for microSD... 
+[init] card mounted at /fs/microsd 
+sercon: Registering CDC/ACM serial driver
+sercon: Successfully registered the CDC/ACM serial driver
+[init] USB interface connected 
+Running rc.APM 
+Mounting binfs 
+binfs mounted OK 
+nsh: rm: unlink failed: No such file or directory
+uorb started OK 
+Starting ArduPilot 
+Starting UNKNOWN uartA=/dev/ttyACM0 uartC=/dev/ttyS1 uartD=/dev/ttyS2 uartE=/dev/ttyS6 uartF=/dev/ttyS5
+initialised /dev/ttyS3 OK 1024 512
+initialised /dev/ttyS1 OK 1024 5ArduPilot started OK 
+12
+rc.APM finished 
+initialised /dev/ttyS2 OK 1024 5
+12
+NuttShell (NSH)
+initialised /dev/ttyS6 OK 1024 5nsh> 12
+
+
+
+其中，下面的地方是我加的，在stm32_spi.c中，看寄存器的。
+GPIOE_MODER:0xa960,register address = 0x40021000
+GPIOE_OTYPER:0x1000,register address = 0x40021004
+GPIOE_OSPEED:0xe820,register address = 0x40021008
+GPIOE_PUPDR:0x4000,register address = 0x4002100c
+GPIOE_IDR:0x95ff,register address = 0x40021010
+GPIOE_ODR:0x1018,register address = 0x40021014
+GPIOE_BSRR:0x0000,register address = 0x40021018
+GPIOE_LCKR:0x0000,register address = 0x4002101c
+GPIOE_AFRL:0x0500,register address = 0x40021020
+GPIOE_AFRH:0x0008,register address = 0x40021024
+
+
+
+
